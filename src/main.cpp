@@ -26,15 +26,9 @@ int main(int argc, char* argv[]) {
     JacobiSolver solver(n, m, myFunc);
 
 
-
-    // solver.printLocalMatrixF();
-
-    // solver.printLocalMatrixU();
-
     //test jacobi iteration
-    solver.iterJacobi();
+    solver.solve();
 
-    // std::cout << "After iteration" << std::endl;
     // solver.printLocalMatrixF();
     solver.printLocalMatrixU();
     
