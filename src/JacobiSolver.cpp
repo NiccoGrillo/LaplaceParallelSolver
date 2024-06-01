@@ -87,8 +87,9 @@ double JacobiSolver::iterJacobi(){
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> U_new_buf(local_U.rows(), m);
     double h = 1.0 / (n - 1);
     double res_sum_squared = 0.0;
-
-    for (int i = (rank >= 0 ? 1 : 0); i < local_matrix.rows() - (rank <= size - 1 ? 1 : 0); ++i) {
+    
+    #pragma omp parallel for reduction(+:res_sum_squared) collapse(2)
+    for (int i = 1; i < local_matrix.rows() - 1; ++i) {
         for (int j = 1; j < m - 1; ++j) {
             U_new_buf(i, j) = 0.25 * (local_U(i-1, j) + local_U(i+1, j) + local_U(i, j-1) + local_U(i, j+1) - h*h*local_matrix(i, j));
             res_sum_squared += std::pow(local_U(i, j) - U_new_buf(i, j), 2);
