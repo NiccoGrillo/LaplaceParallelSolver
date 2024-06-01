@@ -70,110 +70,35 @@ void JacobiSolver::initializeMatrix(std::function<double(double, double)> func) 
     }
 }
 
-
-void JacobiSolver::printLocalMatrixF() const {
+void JacobiSolver::setBoundaryConditions() {
     if (rank == 0) {
-        // Rank 0 starts the printing process
-        std::cout << "Process " << rank << " local matrix F:" << std::endl;
-        std::cout << local_matrix << std::endl;
-        
-        if (size > 1) {
-            // Signal the next process to start printing
-            MPI_Send(nullptr, 0, MPI_BYTE, rank + 1, 0, MPI_COMM_WORLD);
-        }
-    } else {
-        // Other ranks wait for the signal to print
-        MPI_Recv(nullptr, 0, MPI_BYTE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        
-        std::cout << "Process " << rank << " local matrix F:" << std::endl;
-        std::cout << local_matrix << std::endl;
-
-        if (rank < size - 1) {
-            // Signal the next process to start printing
-            MPI_Send(nullptr, 0, MPI_BYTE, rank + 1, 0, MPI_COMM_WORLD);
-        }
+        local_U.row(0).setZero();
     }
-
-    // Ensure all processes complete their printing before proceeding
-    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == size - 1) {
+        local_U.row(local_U.rows() - 1).setZero();
+    }
+    local_U.col(0).setZero();
+    local_U.col(local_U.cols() - 1).setZero();
 }
 
-
-void JacobiSolver::printLocalMatrixU() const {
-    if (rank == 0) {
-        // Rank 0 starts the printing process
-        std::cout << "Process " << rank << " local matrix U:" << std::endl;
-        std::cout << local_U << std::endl;
-        
-        if (size > 1) {
-            // Signal the next process to start printing
-            MPI_Send(nullptr, 0, MPI_BYTE, rank + 1, 0, MPI_COMM_WORLD);
-        }
-    } else {
-        // Other ranks wait for the signal to print
-        MPI_Recv(nullptr, 0, MPI_BYTE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        
-        std::cout << "Process " << rank << " local matrix U:" << std::endl;
-        std::cout << local_U << std::endl;
-
-        if (rank < size - 1) {
-            // Signal the next process to start printing
-            MPI_Send(nullptr, 0, MPI_BYTE, rank + 1, 0, MPI_COMM_WORLD);
-        }
-    }
-
-    // Ensure all processes complete their printing before proceeding
-    MPI_Barrier(MPI_COMM_WORLD);
-}
-
-void JacobiSolver::iterJacobi(){
-    //this method will generate the new matrix U at k+1 iteration
-    //the comunications between ranks will be done as follow:
-
+double JacobiSolver::iterJacobi(){
     //for each block of the local U compute the jacobi
-    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> U_new_buf(local_matrix.rows(), m);
-    // double h = 0.001;
-    double h = 0.1;
-
     //compute the new matrix U 
-    for (int i = (rank > 0 ? 1 : 0); i < local_matrix.rows() - (rank < size - 1 ? 1 : 0); ++i) {
-        for (int j = 0; j < m; ++j) {
-            double sum = 0.0;
-            int count = 0;
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> U_new_buf(local_U.rows(), m);
+    double h = 1.0 / (n - 1);
+    double res_sum_squared = 0.0;
 
-            // Check if the upper neighbor exists
-            if (i > 0 || rank > 0) {
-                sum += U_new_buf(i-1, j);
-                count++;
-            }
-            else if (i == 0) {
-                sum += 0.0;
-                count++;
-            }
+    for (int i = (rank >= 0 ? 1 : 0); i < local_matrix.rows() - (rank <= size - 1 ? 1 : 0); ++i) {
+        for (int j = 1; j < m - 1; ++j) {
+            U_new_buf(i, j) = 0.25 * (local_U(i-1, j) + local_U(i+1, j) + local_U(i, j-1) + local_U(i, j+1) - h*h*local_matrix(i, j));
+            res_sum_squared += std::pow(local_U(i, j) - U_new_buf(i, j), 2);
+            //compute residual
 
-            // Check if the lower neighbor exists
-            if (i < local_matrix.rows() - 1 || rank < size - 1) {
-                sum += U_new_buf(i+1, j);
-                count++;
-            }
-
-            // Check if the left neighbor exists
-            if (j > 0) {
-                sum += U_new_buf(i, j-1);
-                count++;
-            }
-
-            // Check if the right neighbor exists
-            if (j < m - 1) {
-                sum += U_new_buf(i, j+1);
-                count++;
-            }
-
-            // U_new_buf(i, j) = (sum + h*h*local_matrix(i, j)) / count;
-            local_U(i, j) = 0.25 * (sum + h*h*local_matrix(i, j));
-            // U_new_buf(i, j) = 0.25 * (local_U(i-1, j) + local_U(i+1, j) + local_U(i, j-1) + local_U(i, j+1) + h*h*local_matrix(i, j));
         }
     }
+
+    local_U = U_new_buf;
+    double res_k = std::sqrt(res_sum_squared * h);
 
     // communicate the edge rows with the neighbors ranks
     for(int r = 0; r < size; ++r){
@@ -213,4 +138,81 @@ void JacobiSolver::iterJacobi(){
 
     //now the local_U is ready for the next iteration
 
+    //now return the residual
+    return res_k;
+
+}
+
+void JacobiSolver::solve() {
+    double tol = 1e-6;
+    int max_iter = 10000;
+    double residual;
+    int iter = 0;
+
+    double res_k = 0.0;
+
+    do {
+        iter++;
+        res_k = iterJacobi();
+        //aggregate the residuals
+        MPI_Allreduce(&res_k, &residual, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        if (rank == 0) {
+            std::cout << "Iteration " << iter << ", Residual: " << residual << std::endl;
+        }
+    } while (residual > tol && iter < max_iter);
+}
+
+//prints
+void JacobiSolver::printLocalMatrixF() const {
+    if (rank == 0) {
+        // Rank 0 starts the printing process
+        std::cout << "Process " << rank << " local matrix F:" << std::endl;
+        std::cout << local_matrix << std::endl;
+        
+        if (size > 1) {
+            // Signal the next process to start printing
+            MPI_Send(nullptr, 0, MPI_BYTE, rank + 1, 0, MPI_COMM_WORLD);
+        }
+    } else {
+        // Other ranks wait for the signal to print
+        MPI_Recv(nullptr, 0, MPI_BYTE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        
+        std::cout << "Process " << rank << " local matrix F:" << std::endl;
+        std::cout << local_matrix << std::endl;
+
+        if (rank < size - 1) {
+            // Signal the next process to start printing
+            MPI_Send(nullptr, 0, MPI_BYTE, rank + 1, 0, MPI_COMM_WORLD);
+        }
+    }
+
+    // Ensure all processes complete their printing before proceeding
+    MPI_Barrier(MPI_COMM_WORLD);
+}
+
+void JacobiSolver::printLocalMatrixU() const {
+    if (rank == 0) {
+        // Rank 0 starts the printing process
+        std::cout << "Process " << rank << " local matrix U:" << std::endl;
+        std::cout << local_U << std::endl;
+        
+        if (size > 1) {
+            // Signal the next process to start printing
+            MPI_Send(nullptr, 0, MPI_BYTE, rank + 1, 0, MPI_COMM_WORLD);
+        }
+    } else {
+        // Other ranks wait for the signal to print
+        MPI_Recv(nullptr, 0, MPI_BYTE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        
+        std::cout << "Process " << rank << " local matrix U:" << std::endl;
+        std::cout << local_U << std::endl;
+
+        if (rank < size - 1) {
+            // Signal the next process to start printing
+            MPI_Send(nullptr, 0, MPI_BYTE, rank + 1, 0, MPI_COMM_WORLD);
+        }
+    }
+
+    // Ensure all processes complete their printing before proceeding
+    MPI_Barrier(MPI_COMM_WORLD);
 }
