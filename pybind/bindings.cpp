@@ -1,8 +1,9 @@
-#include <pybind11.h>
-#include <stl.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <pybind11/functional.h>  // Include this header for std::function conversions
 #include <mpi.h>
 #include <functional>
-#include "JacobiSolver.hpp"
+#include "../include/JacobiSolver.hpp"
 
 namespace py = pybind11;
 
@@ -16,7 +17,7 @@ PYBIND11_MODULE(solver, m) {
         .def("printLocalMatrixU", &JacobiSolver::printLocalMatrixU)
         .def("computeL2Error", &JacobiSolver::computeL2Error)
         .def_readonly("current_iteration", &JacobiSolver::current_iteration)
-        .def_readonly("current_residual", &JacobiSolver::current_residual);
+        .def_readonly("curr_avg_residual_ranks", &JacobiSolver::curr_avg_residual_ranks);
 
     m.def("myFunc", [](double x, double y) {
         return 8 * M_PI * M_PI * sin(2 * M_PI * x) * sin(2 * M_PI * y);
