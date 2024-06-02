@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cmath>
 #include "JacobiSolver.hpp"
+// #include "writeVTK.hpp"
 
 double myFunc(double x, double y) {
     return 8 * M_PI * M_PI * sin(2 * M_PI * x) * sin(2 * M_PI * y);
@@ -22,13 +23,13 @@ int main(int argc, char* argv[]) {
         std::cout << "Running with " << size << " processes" << std::endl;
     }
 
-    int n = 6;  // total number of rows
-    int max_iters = 1000000;
+    int n = 200;  // total number of rows
+    int max_iters = 200000;
     double tol = 1e-13;
 
     JacobiSolver solver(n, max_iters, tol, myFunc, exactSolution);
 
-    solver.setBoundaryConditions();
+    // solver.iterJacobi();
     solver.solve();
 
     double l2_error = solver.computeL2Error();
@@ -36,6 +37,8 @@ int main(int argc, char* argv[]) {
     if (rank == 0) {
         std::cout << "L2 Error: " << l2_error << std::endl;
     }
+         
+    solver.saveSolution("solution.vtk", true, false); // save also the exact solution and do not print the solution
 
     MPI_Finalize();
     return 0;
