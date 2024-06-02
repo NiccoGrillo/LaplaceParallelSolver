@@ -3,19 +3,17 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import subprocess
-from tqdm.notebook import tqdm
 import sys
 
 def run_solver(n, max_iters, tol):
     solver.mpi_init()
-    jacobi_solver = solver.JacobiSolver(n, m, max_iters, tol, solver.myFunc, solver.exactSolution)
-    jacobi_solver.setBoundaryConditions()
+    jacobi_solver = solver.JacobiSolver(n, max_iters, tol, solver.myFunc, solver.exactSolution)
     start_time = time.time()
     jacobi_solver.solve()
     end_time = time.time()
     l2_error = jacobi_solver.computeL2Error()
     solver.mpi_finalize()
-    return end_time - start_time, jacobi_solver.current_iteration, jacobi_solver.current_residual, l2_error
+    return end_time - start_time, jacobi_solver.current_iteration, jacobi_solver.curr_avg_residual_ranks, l2_error
 
 def main():
     # Parameters
@@ -29,13 +27,27 @@ def main():
 
     # Run the solver for each combination of matrix size and number of processes
     for num_processes in num_processes_list:
-        for size in tqdm(matrix_sizes, desc=f'Running with {num_processes} processes'):
-            result = subprocess.run(['mpirun', '-np', str(num_processes), 'python3', 'test_solver.py', str(size), str(size), str(max_iters), str(tol)],
+        for size in matrix_sizes:
+            print(f'Running with {num_processes} processes and matrix size {size}x{size}')
+            result = subprocess.run(['mpirun', '-np', str(num_processes), 'python3', 'test_solver.py', str(size), str(max_iters), str(tol)],
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             if result.returncode != 0:
                 print(f"Error running with {num_processes} processes and matrix size {size}x{size}: {result.stderr}")
             else:
-                exec_time, current_iteration, current_residual, l2_error = map(float, result.stdout.strip().split())
+                output = result.stdout.strip().split()
+                if len(output) != 4:
+                    print(f"Unexpected output format: {result.stdout}")
+                    continue
+
+                try:
+                    exec_time = float(output[0])
+                    current_iteration = float(output[1])
+                    current_residual = float(output[2])
+                    l2_error = float(output[3])
+                except ValueError as e:
+                    print(f"Error converting output to float: {e}, Output: {output}")
+                    continue
+
                 results[num_processes].append((size, exec_time, current_iteration, current_residual, l2_error))
 
     # Plot execution time
@@ -51,7 +63,7 @@ def main():
     plt.xscale('log')
     plt.yscale('log')
     plt.grid(True)
-    plt.show()
+    plt.savefig('execution_time.png')  # Save the plot to a file
 
     # Plot L2 error for 4 processes
     plt.figure(figsize=(12, 8))
@@ -65,14 +77,14 @@ def main():
     plt.xscale('log')
     plt.yscale('log')
     plt.grid(True)
-    plt.show()
+    plt.savefig('l2_error.png')  # Save the plot to a file
 
 if __name__ == "__main__":
-    if len(sys.argv) == 5:
-
-        max_iters = int(sys.argv[3])
-        tol = float(sys.argv[4])
-        exec_time, current_iteration, current_residual, l2_error = run_solver(n, m, max_iters, tol)
+    if len(sys.argv) == 4:
+        size = int(sys.argv[1])
+        max_iters = int(sys.argv[2])
+        tol = float(sys.argv[3])
+        exec_time, current_iteration, current_residual, l2_error = run_solver(size, max_iters, tol)
         print(exec_time, current_iteration, current_residual, l2_error)
     else:
         main()
