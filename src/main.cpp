@@ -1,10 +1,14 @@
 #include <mpi.h>
 #include <iostream>
+#include <cmath>
 #include "JacobiSolver.hpp"
 
 double myFunc(double x, double y) {
-    // return 8 * M_PI * M_PI * sin(2 * M_PI * x) * sin(2 * M_PI * y); //M_PI is pi greek letter
-    return x + y;
+    return 8 * M_PI * M_PI * sin(2 * M_PI * x) * sin(2 * M_PI * y);
+}
+
+double exactSolution(double x, double y) {
+    return sin(2 * M_PI * x) * sin(2 * M_PI * y);
 }
 
 int main(int argc, char* argv[]) {
@@ -16,22 +20,22 @@ int main(int argc, char* argv[]) {
 
     if (rank == 0) {
         std::cout << "Running with " << size << " processes" << std::endl;
-        std::cout << "Before iteration" << std::endl;
     }
 
-    int n = 14;  // total number of rows
-    int m = 5;   // total number of columns
+    int n = 6;  // total number of rows
+    int max_iters = 1000000;
+    double tol = 1e-13;
 
+    JacobiSolver solver(n, max_iters, tol, myFunc, exactSolution);
 
-    JacobiSolver solver(n, m, myFunc);
-
-
-    //test jacobi iteration
+    solver.setBoundaryConditions();
     solver.solve();
 
-    // solver.printLocalMatrixF();
-    solver.printLocalMatrixU();
-    
+    double l2_error = solver.computeL2Error();
+
+    if (rank == 0) {
+        std::cout << "L2 Error: " << l2_error << std::endl;
+    }
 
     MPI_Finalize();
     return 0;
