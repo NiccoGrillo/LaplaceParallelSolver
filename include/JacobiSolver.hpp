@@ -8,24 +8,30 @@
 
 class JacobiSolver {
 public:
-    JacobiSolver(int rows, int cols, std::function<double(double, double)> func);
+    JacobiSolver(int num, int max_iters, double tol, std::function<double(double, double)> func, std::function<double(double, double)> exact_sol);
+
     void setBoundaryConditions();
+    double iterJacobi();
+    void solve();
     void printLocalMatrixF() const;
     void printLocalMatrixU() const;
-    void solve();
-    double iterJacobi();
+    double computeL2Error();
+
+    int current_iteration;
+    double current_residual;
 
 private:
-    int n, m; //n -> number of rows, m -> number of columns
+    int n; // number of rows and columns
+    int max_iterations;
+    double tolerance;
+    double h;
     int rank, size;
-    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> local_matrix;
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> local_F;
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> local_U;
+    std::function<double(double, double)> exact_solution;
 
     void initializeMatrix(std::function<double(double, double)> func);
-
-    //new method: iterJacobi
-
-    //new method: updateMatrix
+    int localToGlobal(int local_row) const;
 };
 
 #endif // JACOBISOLVER_HPP

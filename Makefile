@@ -7,7 +7,9 @@ CXXFLAGS = -I "include" \
            -I "/u/sw/toolchains/gcc-glibc/11.2.0/pkgs/lis/2.0.30/include" \
            -I "/u/sw/toolchains/gcc-glibc/11.2.0/pkgs/dealii/9.3.1/include" \
            -I "/home/nicco/PACS/pacs-examples/Examples/src/Utilities/" \
+           -I "/u/sw/toolchains/gcc-glibc/11.2.0/pkgs/pybind11/2.6.2/include/pybind11/" \
            -O2 -std=c++11 -Wno-deprecated-enum-enum-conversion
+           
 
 SRC_DIR = src
 OBJ_DIR = obj
