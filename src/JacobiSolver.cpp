@@ -17,57 +17,14 @@ JacobiSolver::JacobiSolver(int num, int max_iters, double tol, std::function<dou
 void JacobiSolver::initializeMatrix(std::function<double(double, double)> func) {
     int rows_per_process = n / size;
 
-    //this fills the f matrix with the computed values
-    if (rank == 0) {
-        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> full_matrix(n, n);
-        int count_temp = 0;
-        for (int i = 0; i < n; ++i) {
-            for (int j = 0; j < n; ++j){
-                full_matrix(i, j) = func(static_cast<double>(i) / (n - 1), 1 - static_cast<double>(j) / (n - 1));
 
-            }
+    auto [start_row, end_row, num_rows] = localToGlobal();
+
+    local_F.resize(num_rows, n);
+    for (int i = 0; i < local_F.rows(); ++i) {
+        for (int j = 0; j < n; ++j) {
+            local_F(i, j) = func((start_row + i) * h,1- j * h);
         }
-
-        // Share the full matrix row information with all processes
-        for (int r = 0; r < size; ++r) {
-            int start_row, end_row, num_rows, additional_row = 0;
-            int rest = n % size;
-
-            if (rest > r) {
-                start_row = r * (rows_per_process + 1) - 1;
-                additional_row++;
-            } else {
-                start_row = rest * (rows_per_process + 1) + (r - rest) * rows_per_process - 1;
-            }
-
-
-            if (r != 0 and r != size - 1) {
-                // start_row = r*rows_per_process - 1;
-                end_row = start_row + rows_per_process + 1 + additional_row;
-
-            }
-            else if (r == 0){
-                start_row = 0;
-                end_row = start_row + rows_per_process + additional_row;
-            }
-            else{ //at last rank we cannot have additional rows (otherwise rest is 0)
-                end_row = n - 1;
-            }
-            num_rows = end_row - start_row + 1;
-
-            if (r != 0) {
-                MPI_Send(&num_rows, 1, MPI_INT, r, 0, MPI_COMM_WORLD);
-                MPI_Send(full_matrix.data() + start_row * n, num_rows *n, MPI_DOUBLE, r, 0, MPI_COMM_WORLD);
-            } else {
-                local_F = full_matrix.block(start_row, 0, num_rows, n);
-            }
-        }
-
-    } else {
-        int num_rows;
-        MPI_Recv(&num_rows, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        local_F.resize(num_rows, n);
-        MPI_Recv(local_F.data(), num_rows * n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
 }
 
@@ -258,66 +215,7 @@ std::tuple<int, int, int> JacobiSolver::localToGlobal(int other_rank, bool real_
     }
 }
 
-void JacobiSolver::saveSolution(const std::string& filename, bool save_also_exact_solution,  bool print) const{
-    int rows_per_process = n / size;
-    int rest = n % size;
-    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> full_U;
-    if (rank == 0) {
-        full_U.resize(n, n);
-
-        // Copy local_U data to the full_U matrix, accounting for overlaps
-        auto [start_row, end_row, real_num_rows] = localToGlobal(0, true);
-        for (int i = 0; i < real_num_rows; ++i) {
-            full_U.row(start_row + i) = local_U.row(i);   
-        }
-
-        // Receive the data from other processes
-        for (int r = 1; r < size; ++r) {
-            auto [real_start_row, real_end_row, real_num_rows] = localToGlobal(r, true);
-
-            Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> temp_matrix(real_num_rows, n);
-            MPI_Recv(temp_matrix.data(), real_num_rows * n, MPI_DOUBLE, r, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            full_U.block(real_start_row, 0, real_num_rows, n) = temp_matrix;
-        }
-
-
-    } else {
-        // Send local_U data to rank 0, adjusting for overlaps
-        auto [real_start_row, real_end_row, real_num_rows] = localToGlobal(-1, true);
-        auto [real_local_start_row, real_local_end_row, real_local_num_rows] = localToGlobal(-1, false, true);
-        MPI_Send(local_U.block(real_local_start_row, 0, real_num_rows, n).data(), real_num_rows * n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
-    }
-
-    if (rank == 0 && print){
-        std::cout << "Full matrix U:" << std::endl;
-        std::cout << full_U << std::endl;
-    }
-
-    //let's now save the solution in vtk file:
-    if (rank == 0) {
-        std::vector<std::vector<double>> vec(full_U.rows(), std::vector<double>(full_U.cols()));
-
-        for (int i = 0; i < full_U.rows(); ++i)
-            for (int j = 0; j < full_U.cols(); ++j)
-                vec[i][j] = full_U(i, j);
-        
-        generateVTKFile(filename, vec, n - 1, n - 1, h, h);
-    }
-
-    if (rank == 0 and save_also_exact_solution){
-        std::vector<std::vector<double>> vecc(full_U.rows(), std::vector<double>(full_U.cols()));
-        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> U_corr(n,n);
-
-        for (int i = 0; i < full_U.rows(); ++i)
-            for (int j = 0; j < full_U.cols(); ++j)
-                vecc[i][j] =  exact_solution(i*h, j*h);
-
-        generateVTKFile("exact_solution.vtk", vecc, n - 1, n - 1, h, h);
-    }
-
-};
-
-//prints
+//prints and saving
 void JacobiSolver::printLocalMatrixF() const {
     if (rank == 0) {
         // Rank 0 starts the printing process
@@ -371,3 +269,63 @@ void JacobiSolver::printLocalMatrixU() const {
     // Ensure all processes complete their printing before proceeding
     MPI_Barrier(MPI_COMM_WORLD);
 }
+
+void JacobiSolver::saveSolution(const std::string& filename, bool save_also_exact_solution,  bool print) const{
+    int rows_per_process = n / size;
+    int rest = n % size;
+    std::string new_filename = "../data/" + filename;
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> full_U;
+    if (rank == 0) {
+        full_U.resize(n, n);
+
+        // Copy local_U data to the full_U matrix, accounting for overlaps
+        auto [start_row, end_row, real_num_rows] = localToGlobal(0, true);
+        for (int i = 0; i < real_num_rows; ++i) {
+            full_U.row(start_row + i) = local_U.row(i);   
+        }
+
+        // Receive the data from other processes
+        for (int r = 1; r < size; ++r) {
+            auto [real_start_row, real_end_row, real_num_rows] = localToGlobal(r, true);
+
+            Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> temp_matrix(real_num_rows, n);
+            MPI_Recv(temp_matrix.data(), real_num_rows * n, MPI_DOUBLE, r, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            full_U.block(real_start_row, 0, real_num_rows, n) = temp_matrix;
+        }
+
+
+    } else {
+        // Send local_U data to rank 0, adjusting for overlaps
+        auto [real_start_row, real_end_row, real_num_rows] = localToGlobal(-1, true);
+        auto [real_local_start_row, real_local_end_row, real_local_num_rows] = localToGlobal(-1, false, true);
+        MPI_Send(local_U.block(real_local_start_row, 0, real_num_rows, n).data(), real_num_rows * n, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+    }
+
+    if (rank == 0 && print){
+        std::cout << "Full matrix U:" << std::endl;
+        std::cout << full_U << std::endl;
+    }
+
+    //let's now save the solution in vtk file:
+    if (rank == 0) {
+        std::vector<std::vector<double>> vec(full_U.rows(), std::vector<double>(full_U.cols()));
+
+        for (int i = 0; i < full_U.rows(); ++i)
+            for (int j = 0; j < full_U.cols(); ++j)
+                vec[i][j] = full_U(i, j);
+        
+        generateVTKFile(new_filename, vec, n - 1, n - 1, h, h);
+    }
+
+    if (rank == 0 and save_also_exact_solution){
+        std::vector<std::vector<double>> vecc(full_U.rows(), std::vector<double>(full_U.cols()));
+        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> U_corr(n,n);
+
+        for (int i = 0; i < full_U.rows(); ++i)
+            for (int j = 0; j < full_U.cols(); ++j)
+                vecc[i][j] =  exact_solution(i*h, j*h);
+
+        generateVTKFile("../data/exact_solution.vtk", vecc, n - 1, n - 1, h, h);
+    }
+
+};

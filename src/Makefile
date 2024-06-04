@@ -1,5 +1,5 @@
 CXX = mpic++
-CXXFLAGS = -I "include" \
+CXXFLAGS = -I "../include" \
            -I "/u/sw/toolchains/gcc-glibc/11.2.0/prefix/include/**" \
            -I "/u/sw/toolchains/gcc-glibc/11.2.0/prefix/include/c++/11.2.0" \
            -I "/u/sw/toolchains/gcc-glibc/11.2.0/base/include" \
@@ -11,9 +11,9 @@ CXXFLAGS = -I "include" \
            -O2 -std=c++20 -Wno-deprecated-enum-enum-conversion
            
 
-SRC_DIR = src
-OBJ_DIR = obj
-INC_DIR = include
+SRC_DIR = ./
+OBJ_DIR = ../obj
+INC_DIR = ../include
 
 SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
 OBJECTS = $(SOURCES:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
