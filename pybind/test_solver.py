@@ -1,9 +1,9 @@
 import solver
-import time
 import numpy as np
 import matplotlib.pyplot as plt
 import subprocess
 import sys
+import time
 
 def myFunc(x, y):
     return 8 * np.pi * np.pi * np.sin(2 * np.pi * x) * np.sin(2 * np.pi * y)
@@ -13,22 +13,26 @@ def exactSolution(x, y):
 
 def run_solver(n, max_iters, tol, func, exact_sol, bc_type="dirichlet", alpha=1.0, beta=1.0, use_multithreading=True):
     solver.mpi_init()
-    if bc_type == "dirichlet":
-        boundary_condition = solver.DirichletBoundaryCondition()
-        jacobi_solver = solver.JacobiSolverDirichlet(n, max_iters, tol, func, exact_sol, boundary_condition, use_multithreading)
-    elif bc_type == "robin":
-        g_func = lambda x, y: 0.0  # Adjust this as needed
-        boundary_condition = solver.RobinBoundaryCondition(alpha, beta, g_func)
-        jacobi_solver = solver.JacobiSolverRobin(n, max_iters, tol, func, exact_sol, boundary_condition, use_multithreading)
-    else:
-        raise ValueError(f"Unknown boundary condition type: {bc_type}")
+    try:
+        if bc_type == "dirichlet":
+            boundary_condition = solver.DirichletBoundaryCondition()
+            jacobi_solver = solver.JacobiSolverDirichlet(n, max_iters, tol, func, exact_sol, boundary_condition, use_multithreading)
+        elif bc_type == "robin":
+            g_func = lambda x, y: 0.0  # Adjust this as needed
+            boundary_condition = solver.RobinBoundaryCondition(alpha, beta, g_func)
+            jacobi_solver = solver.JacobiSolverRobin(n, max_iters, tol, func, exact_sol, boundary_condition, use_multithreading)
+        else:
+            raise ValueError(f"Unknown boundary condition type: {bc_type}")
 
-    start_time = time.time()
-    jacobi_solver.solve()
-    end_time = time.time()
-    l2_error = jacobi_solver.computeL2Error()
-    solver.mpi_finalize()
-    return end_time - start_time, jacobi_solver.current_iteration, jacobi_solver.curr_avg_residual_ranks, l2_error
+        print("Starting solver")
+        start_time = time.time()
+        exec_time = jacobi_solver.solve()
+        end_time = time.time()
+        l2_error = jacobi_solver.computeL2Error()
+        print(f"Solver finished in {end_time - start_time} seconds")
+    finally:
+        solver.mpi_finalize()
+    return exec_time, jacobi_solver.current_iteration, jacobi_solver.curr_avg_residual_ranks, l2_error
 
 def main():
     # Parameters
