@@ -1,31 +1,40 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/functional.h>  // Include this header for std::function conversions
+#include <pybind11/functional.h>
 #include <mpi.h>
 #include <functional>
 #include "../include/JacobiSolver.hpp"
+#include "../include/DirichletBoundaryCondition.hpp"
+#include "../include/RobinBoundaryCondition.hpp"
 
 namespace py = pybind11;
 
 PYBIND11_MODULE(solver, m) {
-    py::class_<JacobiSolver>(m, "JacobiSolver")
-        .def(py::init<int, int, double, std::function<double(double, double)>, std::function<double(double, double)>>())
-        .def("setBoundaryConditions", &JacobiSolver::setBoundaryConditions)
-        .def("iterJacobi", &JacobiSolver::iterJacobi)
-        .def("solve", &JacobiSolver::solve)
-        .def("printLocalMatrixF", &JacobiSolver::printLocalMatrixF)
-        .def("printLocalMatrixU", &JacobiSolver::printLocalMatrixU)
-        .def("computeL2Error", &JacobiSolver::computeL2Error)
-        .def_readonly("current_iteration", &JacobiSolver::current_iteration)
-        .def_readonly("curr_avg_residual_ranks", &JacobiSolver::curr_avg_residual_ranks);
+    py::class_<DirichletBoundaryCondition>(m, "DirichletBoundaryCondition")
+        .def(py::init<>());
 
-    m.def("myFunc", [](double x, double y) {
-        return 8 * M_PI * M_PI * sin(2 * M_PI * x) * sin(2 * M_PI * y);
-    });
+    py::class_<RobinBoundaryCondition>(m, "RobinBoundaryCondition")
+        .def(py::init<double, double, std::function<double(double, double)>>());
 
-    m.def("exactSolution", [](double x, double y) {
-        return sin(2 * M_PI * x) * sin(2 * M_PI * y);
-    });
+    py::class_<JacobiSolver<DirichletBoundaryCondition>>(m, "JacobiSolverDirichlet")
+        .def(py::init<int, int, double, std::function<double(double, double)>, std::function<double(double, double)>, DirichletBoundaryCondition, bool>())
+        .def("solve", &JacobiSolver<DirichletBoundaryCondition>::solve)
+        .def("computeL2Error", &JacobiSolver<DirichletBoundaryCondition>::computeL2Error)
+        .def("printLocalMatrixF", &JacobiSolver<DirichletBoundaryCondition>::printLocalMatrixF)
+        .def("printLocalMatrixU", &JacobiSolver<DirichletBoundaryCondition>::printLocalMatrixU)
+        .def("saveSolution", &JacobiSolver<DirichletBoundaryCondition>::saveSolution)
+        .def_readonly("current_iteration", &JacobiSolver<DirichletBoundaryCondition>::current_iteration)
+        .def_readonly("curr_avg_residual_ranks", &JacobiSolver<DirichletBoundaryCondition>::curr_avg_residual_ranks);
+
+    py::class_<JacobiSolver<RobinBoundaryCondition>>(m, "JacobiSolverRobin")
+        .def(py::init<int, int, double, std::function<double(double, double)>, std::function<double(double, double)>, RobinBoundaryCondition, bool>())
+        .def("solve", &JacobiSolver<RobinBoundaryCondition>::solve)
+        .def("computeL2Error", &JacobiSolver<RobinBoundaryCondition>::computeL2Error)
+        .def("printLocalMatrixF", &JacobiSolver<RobinBoundaryCondition>::printLocalMatrixF)
+        .def("printLocalMatrixU", &JacobiSolver<RobinBoundaryCondition>::printLocalMatrixU)
+        .def("saveSolution", &JacobiSolver<RobinBoundaryCondition>::saveSolution)
+        .def_readonly("current_iteration", &JacobiSolver<RobinBoundaryCondition>::current_iteration)
+        .def_readonly("curr_avg_residual_ranks", &JacobiSolver<RobinBoundaryCondition>::curr_avg_residual_ranks);
 
     m.def("mpi_init", []() {
         int argc = 0;
