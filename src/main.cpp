@@ -9,12 +9,11 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-
-
-    int num = 320;
+    int num = (argc > 1) ? atoi(argv[1]) : 320;
+    bool use_multithreading = (argc > 2) ? (std::string(argv[2]) == "true") : false;
     int max_iters = 10000;
     double tol = 1e-12;
-    bool use_multithreading = true;
+
     if (rank == 0) {
         std::cout << "Number of grid points: " << num << std::endl;
         std::cout << "Maximum number of iterations: " << max_iters << std::endl;
@@ -26,7 +25,7 @@ int main(int argc, char** argv) {
     auto exact_sol = [](double x, double y) { return sin(2 * M_PI * x) * sin(2 * M_PI * y); };
 
     // For Dirichlet boundary condition
-    if(rank ==0)
+    if(rank == 0)
         std::cout << "Dirichlet boundary condition" << std::endl;
     DirichletBoundaryCondition dirichlet_bc;
     JacobiSolver<DirichletBoundaryCondition> solverDirichlet(num, max_iters, tol, func, exact_sol, dirichlet_bc, use_multithreading);
