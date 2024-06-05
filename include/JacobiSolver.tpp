@@ -33,7 +33,7 @@ double JacobiSolver<BoundaryConditionType>::iterJacobi() {
     double res_sum_squared = 0.0;
 
     if (use_multithreading) {
-        #pragma omp parallel for reduction(+:res_sum_squared) collapse(2)
+        #pragma omp parallel for reduction(+:res_sum_squared) shared(local_U, U_new_buf) collapse(2)
         for (int i = 1; i < local_U.rows() - 1; ++i) {
             for (int j = 1; j < n - 1; ++j) {
                 U_new_buf(i, j) = 0.25 * (local_U(i - 1, j) + local_U(i + 1, j) + local_U(i, j - 1) + local_U(i, j + 1) - h * h * local_F(i, j));
@@ -89,10 +89,11 @@ double JacobiSolver<BoundaryConditionType>::iterJacobi() {
 }
 
 template <typename BoundaryConditionType>
-void JacobiSolver<BoundaryConditionType>::solve() {
+double JacobiSolver<BoundaryConditionType>::solve() {
     current_iteration = 0;
     double res_k = 0.0;
     int converged_res = 0;
+    auto start = std::chrono::high_resolution_clock::now();    
 
     do {
         current_iteration++;
@@ -109,6 +110,8 @@ void JacobiSolver<BoundaryConditionType>::solve() {
 
     } while (!converged_res && current_iteration < max_iterations);
 
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;    
     if (rank == 0) {
         if (current_iteration >= max_iterations) {
             std::cout << "Stopped at iteration _"<< current_iteration <<"_ because the maximum number of iterations was reached with a final average residual among the processes of: " << curr_avg_residual_ranks << std::endl;
@@ -116,6 +119,7 @@ void JacobiSolver<BoundaryConditionType>::solve() {
             std::cout << "Stopped at iteration _"<< current_iteration <<"_ because the residual was less than the tolerance with a final average residual among the processes of: " << curr_avg_residual_ranks << std::endl;
         }
     }
+    return elapsed.count();
 }
 
 template <typename BoundaryConditionType>

@@ -17,7 +17,8 @@ PYBIND11_MODULE(solver, m) {
         .def(py::init<double, double, std::function<double(double, double)>>());
 
     py::class_<JacobiSolver<DirichletBoundaryCondition>>(m, "JacobiSolverDirichlet")
-        .def(py::init<int, int, double, std::function<double(double, double)>, std::function<double(double, double)>, DirichletBoundaryCondition, bool>())
+        .def(py::init<int, int, double, std::function<double(double, double)>, std::function<double(double, double)>, DirichletBoundaryCondition, bool>(),
+             py::arg("num"), py::arg("max_iters"), py::arg("tol"), py::arg("func"), py::arg("exact_sol"), py::arg("bc"), py::arg("use_multithreading") = true)        
         .def("solve", &JacobiSolver<DirichletBoundaryCondition>::solve)
         .def("computeL2Error", &JacobiSolver<DirichletBoundaryCondition>::computeL2Error)
         .def("printLocalMatrixF", &JacobiSolver<DirichletBoundaryCondition>::printLocalMatrixF)
@@ -27,7 +28,8 @@ PYBIND11_MODULE(solver, m) {
         .def_readonly("curr_avg_residual_ranks", &JacobiSolver<DirichletBoundaryCondition>::curr_avg_residual_ranks);
 
     py::class_<JacobiSolver<RobinBoundaryCondition>>(m, "JacobiSolverRobin")
-        .def(py::init<int, int, double, std::function<double(double, double)>, std::function<double(double, double)>, RobinBoundaryCondition, bool>())
+        .def(py::init<int, int, double, std::function<double(double, double)>, std::function<double(double, double)>, RobinBoundaryCondition, bool>(),
+             py::arg("num"), py::arg("max_iters"), py::arg("tol"), py::arg("func"), py::arg("exact_sol"), py::arg("bc"), py::arg("use_multithreading") = true)
         .def("solve", &JacobiSolver<RobinBoundaryCondition>::solve)
         .def("computeL2Error", &JacobiSolver<RobinBoundaryCondition>::computeL2Error)
         .def("printLocalMatrixF", &JacobiSolver<RobinBoundaryCondition>::printLocalMatrixF)

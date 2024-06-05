@@ -7,6 +7,7 @@
 #include <iostream>
 #include "BoundaryCondition.hpp"
 #include "writeVTK.hpp"
+#include "chrono.hpp"
 
 
 template <typename BoundaryConditionType>
@@ -14,7 +15,7 @@ class JacobiSolver {
 public:
     JacobiSolver(int num, int max_iters, double tol, std::function<double(double, double)> func, std::function<double(double, double)> exact_sol, BoundaryConditionType bc, bool use_multithreading = false);
 
-    void solve();
+    double solve();
     double computeL2Error();
     void printLocalMatrixF() const;
     void printLocalMatrixU() const;

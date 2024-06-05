@@ -11,8 +11,8 @@ int main(int argc, char** argv) {
 
 
 
-    int num = 30;
-    int max_iters = 100000;
+    int num = 320;
+    int max_iters = 10000;
     double tol = 1e-12;
     bool use_multithreading = true;
     if (rank == 0) {
@@ -30,11 +30,12 @@ int main(int argc, char** argv) {
         std::cout << "Dirichlet boundary condition" << std::endl;
     DirichletBoundaryCondition dirichlet_bc;
     JacobiSolver<DirichletBoundaryCondition> solverDirichlet(num, max_iters, tol, func, exact_sol, dirichlet_bc, use_multithreading);
-    solverDirichlet.solve();
+    double exec_time_dir = solverDirichlet.solve();
     solverDirichlet.saveSolution("solution_dirichlet.vtk", true, false);
     double l2_error_dir = solverDirichlet.computeL2Error();
 
     if (rank == 0) {
+        std::cout << "Reached solution in sec: " << exec_time_dir << std::endl;
         std::cout << "L2 Error: " << l2_error_dir << std::endl;
     }
 
@@ -46,11 +47,12 @@ int main(int argc, char** argv) {
     auto g_func = [](double x, double y) { return cos(2 * M_PI * x) + sin(2 * M_PI * y); }; // Example boundary function
     RobinBoundaryCondition robin_bc(alpha, beta, g_func);
     JacobiSolver<RobinBoundaryCondition> solverRobin(num, max_iters, tol, func, exact_sol, robin_bc, use_multithreading);
-    solverRobin.solve();
+    double exec_time_rob = solverRobin.solve();
     solverRobin.saveSolution("solution_robin.vtk", true, false);
     double l2_error_robin = solverRobin.computeL2Error();
 
     if (rank == 0) {
+        std::cout << "Reached solution in sec: " << exec_time_rob << std::endl;
         std::cout << "L2 Error: " << l2_error_robin << std::endl;
     }    
 
