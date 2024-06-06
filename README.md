@@ -48,30 +48,6 @@ source loop.sh
 ```
 
 
-## Pybind11 Integration
-
-This project includes a Python interface using PyBind11. This allows you to interact with the solver from Python scripts.
-
-### Building the Python Module
-
-1. Install PyBind11:
-   ```sh
-   module load pybind11
-   source $(PACS_ROOT)/../Extras/pybind11/install_PACS.sh
-   ```
-
-2. Compile the Python module:
-   ```sh
-   cd pybind
-   make
-   ```
-3. Run the python script:
-    ```sh
-    python test_solver.py
-    ```
-Notes: it seems like in my implementtion there is a bit of overhead by using MPI and Pybind11 together. This is why I used the shell script to compute the official testings (they were too unreliable if done through python).
-
-
 ## Results and some notes
 With $300^2$ grid points and Dirichlet conditions we get the following. On the left the exact solution, on the right the Jacobi approximation. 
 
@@ -93,9 +69,45 @@ These graphs show how the time of computations increases by doubling the x and y
     <img src="./data/l2_error.png" alt="Exact Solution" width="45%" height = "30%">
 </div>
 
+## Pybind11 Integration
 
-### Notes on choice of implementaion:
-The reason why it was chosen to use template for the different boundary conditions is because, by knowing which type of boundary we are using at compile time (which seams reasonable), one could save computations. Indeed in the case of Dirichlet the boundary conditions just need to be applied once, while with Robin it is crucial to apply them at every iteration of the algorithm.
+This project includes a Python interface using PyBind11. This allows you to interact with the solver from Python scripts.
+
+### Building the Python Module
+
+1. Install PyBind11:
+   ```sh
+   module load pybind11
+   source $(PACS_ROOT)/../Extras/pybind11/install_PACS.sh
+   ```
+
+2. Compile the Python module:
+   ```sh
+   cd pybind
+   make
+   ```
+3. Run the python script:
+    ```sh
+    python test_solver.py
+    ```
+### Performance test through Pybind11
+<div style="display: flex; justify-content: space-around;">
+    <img src="./pybind/execution_time_dirichlet_pybind.png" alt="Dirichlet" width="45%" height = "30%">
+    <img src="./pybind/execution_time_robin_pybind.png" alt="robin" width="45%" height = "30%">
+</div>
+
+
+Notes: it seems like in my implementtion there is a bit of overhead by using MPI and Pybind11 together. This is why I used the shell script to compute the official testings directly with C++.
+
+
+
+## Notes on choice of implementaion:
+- The rank subdivision was done by row with a caveat. Every rank had a minimum of one and a maximum of 2 overlapping rows shared also by the adjecent ranks. In this way it was possible to compute all the point of the local U matrix through Jacobi. And once the Jacobi step is done we communicate the newly computed row to the other rank that share it. 
+<div style="display: flex; justify-content: space-around;">
+    <img src="./docs/IMG_0518.jpg" alt="rank splits" width="45%" height = "45%">
+</div>
+
+- The reason why it was chosen to use template for the different boundary conditions is because, by knowing which type of boundary we are using at compile time (which seams reasonable), one could save computations. Indeed in the case of Dirichlet the boundary conditions just need to be applied once, while with Robin it is crucial to apply them at every iteration of the algorithm.
 This saving in time can be seen by comparing the 2 plots above. 
 
 ## License
