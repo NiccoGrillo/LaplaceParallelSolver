@@ -7,7 +7,7 @@ multithreading_options=(false true)
 output_file="../data/performance_results.csv"
 
 # Write the CSV header
-echo "MatrixSize,NumProcs,Multithreading,ExecTimeDir,ErrorDir,ExecTimeRob,ErrorRob" > $output_file
+echo "MatrixSize,NumProcs,Multithreading,ExecTimeDir,ErrorDir,ExecTimeRob,ErrorRob" >> $output_file
 
 # Run tests
 for size in "${matrix_sizes[@]}"; do

@@ -6,8 +6,8 @@
 class BoundaryCondition {
 public:
     virtual ~BoundaryCondition() = default;
-    virtual void setBoundaryConditions(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& local_U, int rank, int size, int n, double h) = 0;
-    virtual void applyBoundaryConditionsAtIteration(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& local_U, int rank, int size, int n, double h) = 0;
+    virtual void setBoundaryConditions(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& local_U, int rank, int size, int n, double h, int start_row) = 0;
+    virtual void applyBoundaryConditionsAtIteration(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& local_U, int rank, int size, int n, double h, int start_row) = 0;
 };
 
 #endif // BOUNDARYCONDITION_HPP

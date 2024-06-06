@@ -13,7 +13,8 @@ JacobiSolver<BoundaryConditionType>::JacobiSolver(int num, int max_iters, double
 
     initializeMatrix(func);
     local_U = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>(local_F.rows(), n);
-    boundary_condition.setBoundaryConditions(local_U, rank, size, n, h);
+    auto [start_row, end_row, num_rows] = localToGlobal();
+    boundary_condition.setBoundaryConditions(local_U, rank, size, n, h, start_row);
 }
 
 template <typename BoundaryConditionType>
@@ -22,8 +23,11 @@ void JacobiSolver<BoundaryConditionType>::initializeMatrix(std::function<double(
     local_F.resize(num_rows, n);
     for (int i = 0; i < local_F.rows(); ++i) {
         for (int j = 0; j < n; ++j) {
-            local_F(i, j) = func((start_row + i) * h, 1 - j * h);
+            // local_F(i, j) = func(j*h, 1 - (start_row + i)* h);
+            local_F(i, j) = func((start_row + i)*h, j* h);
+
         }
+
     }
 }
 
@@ -34,7 +38,7 @@ double JacobiSolver<BoundaryConditionType>::iterJacobi() {
 
     if (use_multithreading) {
         #pragma omp parallel for reduction(+:res_sum_squared) shared(local_U, U_new_buf) collapse(2)
-        for (int i = 1; i < local_U.rows() - 1; ++i) {
+        for (int i = 1; i < local_U.rows() - 1; ++i) { //always avoiding the boundary
             for (int j = 1; j < n - 1; ++j) {
                 U_new_buf(i, j) = 0.25 * (local_U(i - 1, j) + local_U(i + 1, j) + local_U(i, j - 1) + local_U(i, j + 1) - h * h * local_F(i, j));
                 res_sum_squared += std::pow(local_U(i, j) - U_new_buf(i, j), 2);
@@ -93,7 +97,8 @@ double JacobiSolver<BoundaryConditionType>::solve() {
     current_iteration = 0;
     double res_k = 0.0;
     int converged_res = 0;
-    auto start = std::chrono::high_resolution_clock::now();    
+    auto start = std::chrono::high_resolution_clock::now();
+    auto [start_row, end_row, num_rows] = localToGlobal();    
 
     do {
         current_iteration++;
@@ -101,7 +106,7 @@ double JacobiSolver<BoundaryConditionType>::solve() {
         
         // Apply boundary conditions at each iteration only for Robin
         if constexpr (std::is_same_v<BoundaryConditionType, RobinBoundaryCondition>) {
-            boundary_condition.applyBoundaryConditionsAtIteration(local_U, rank, size, n, h);
+            boundary_condition.applyBoundaryConditionsAtIteration(local_U, rank, size, n, h, start_row);
         }
         
         int res_k_true = res_k < tolerance ? 1 : 0;
@@ -126,14 +131,15 @@ template <typename BoundaryConditionType>
 double JacobiSolver<BoundaryConditionType>::computeL2Error() {
     double local_l2_error = 0.0;
 
-    int start_orig_row = std::get<0>(localToGlobal());
+    auto [start_real_row, end_real_row, num_real_rows] = localToGlobal(-1, true);
+    auto [start_real_local_row, end_real_local_row, _] = localToGlobal(-1, false, true);
 
-    for (int i = 1; i < local_F.rows() - 1; ++i) {
-        for (int j = 1; j < n - 1; ++j) {
-            double x = (start_orig_row + i) * h;
-            double y = j * h;
+    for (int i = 0; i < num_real_rows; ++i) {
+        for (int j = 0; j < n - 1; ++j) {
+            double y = 1 - (start_real_row + i) * h;
+            double x = j * h;
             double exact_val = exact_solution(x, y);
-            local_l2_error += std::pow(local_U(i, j) - exact_val, 2);
+            local_l2_error += std::pow(local_U(start_real_local_row + i, j) - exact_val, 2);
         }
     }
 
@@ -197,6 +203,8 @@ std::tuple<int, int, int> JacobiSolver<BoundaryConditionType>::localToGlobal(int
     }
 }
 
+
+//print and saving functions
 template <typename BoundaryConditionType>
 void JacobiSolver<BoundaryConditionType>::printLocalMatrixF() const {
     if (rank == 0) {
@@ -278,18 +286,16 @@ void JacobiSolver<BoundaryConditionType>::saveSolution(const std::string& filena
 
         for (int i = 0; i < full_U.rows(); ++i)
             for (int j = 0; j < full_U.cols(); ++j)
-                vec[i][j] = full_U(i, j);
+                vec[i][j] = full_U(n- 1 - i, j);
         
         generateVTKFile(new_filename, vec, n - 1, n - 1, h, h);
     }
 
     if (rank == 0 && save_also_exact_solution) {
         std::vector<std::vector<double>> vecc(full_U.rows(), std::vector<double>(full_U.cols()));
-        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> U_corr(n, n);
-
         for (int i = 0; i < full_U.rows(); ++i)
             for (int j = 0; j < full_U.cols(); ++j)
-                vecc[i][j] = exact_solution(i * h, j * h);
+                vecc[i][j] = exact_solution(j*h, i * h);
 
         generateVTKFile("../data/exact_solution.vtk", vecc, n - 1, n - 1, h, h);
     }
