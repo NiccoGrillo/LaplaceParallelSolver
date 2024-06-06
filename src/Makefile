@@ -1,5 +1,4 @@
 # Compiler and flags
-CXX = mpic++
 CXXFLAGS = -I "../include" \
            -I "/u/sw/toolchains/gcc-glibc/11.2.0/prefix/include/**" \
            -I "/u/sw/toolchains/gcc-glibc/11.2.0/prefix/include/c++/11.2.0" \
@@ -8,7 +7,11 @@ CXXFLAGS = -I "../include" \
            -I "/u/sw/toolchains/gcc-glibc/11.2.0/pkgs/lis/2.0.30/include" \
            -I "/u/sw/toolchains/gcc-glibc/11.2.0/pkgs/dealii/9.3.1/include" \
            -I "$(PACS_ROOT)/src/Utilities/" \
-           -O2 -std=c++20 -Wno-deprecated-enum-enum-conversion
+           -O2 -std=c++20 -Wno-deprecated-enum-enum-conversion 
+
+CXX=mpic++
+CXXFLAGS+=-Wno-suggest-override -Wno-cast-function-type -fopenmp
+LDFLAGS+=-fopenmp
 
 SRC_DIR = .
 OBJ_DIR = ../obj
