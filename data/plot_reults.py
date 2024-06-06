@@ -10,7 +10,7 @@ data = pd.read_csv('performance_results.csv')
 data['Log2MatrixSize'] = np.log2(data['MatrixSize'])
 
 # Set up the plotting style
-sns.set(style="whitegrid")
+sns.set_theme(style="whitegrid")
 
 # Define custom color palette and dash styles
 palette = sns.color_palette("hsv", len(data['NumProcs'].unique()))
