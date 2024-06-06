@@ -11,7 +11,7 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(solver, m) {
     py::class_<DirichletBoundaryCondition>(m, "DirichletBoundaryCondition")
-        .def(py::init<>());
+        .def(py::init< std::function<double(double, double)>>());
 
     py::class_<RobinBoundaryCondition>(m, "RobinBoundaryCondition")
         .def(py::init<double, double, std::function<double(double, double)>>());

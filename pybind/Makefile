@@ -20,7 +20,7 @@ PY_EXT != python3-config --extension-suffix
 PY_FLAGS=-fPIC -flto #flto is not strictly needed
 PY_MODULE=$(MODULENAME)$(PY_EXT)
 CXXFLAGS+=$(PY_FLAGS)
-CXXFLAGS+=-fopenmp -Wno-deprecated-enum-enum-conversion
+CXXFLAGS+= -Wno-deprecated-enum-enum-conversion
 CPPFLAGS+=$(PY_INCLUDES)
 LDFLAGS+=-flto
 
