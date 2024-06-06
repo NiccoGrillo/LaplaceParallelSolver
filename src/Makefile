@@ -7,8 +7,7 @@ CXXFLAGS = -I "../include" \
            -I "/u/sw/toolchains/gcc-glibc/11.2.0/pkgs/eigen/3.3.9/include/eigen3" \
            -I "/u/sw/toolchains/gcc-glibc/11.2.0/pkgs/lis/2.0.30/include" \
            -I "/u/sw/toolchains/gcc-glibc/11.2.0/pkgs/dealii/9.3.1/include" \
-           -I "/home/nicco/PACS/pacs-examples/Examples/src/Utilities/" \
-           -I "/u/sw/toolchains/gcc-glibc/11.2.0/pkgs/pybind11/2.6.2/include/pybind11/" \
+           -I "$(PACS_ROOT)/src/Utilities/" \
            -O2 -std=c++20 -Wno-deprecated-enum-enum-conversion
 
 SRC_DIR = .
