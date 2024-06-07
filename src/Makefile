@@ -1,17 +1,10 @@
-# Compiler and flags
-CXXFLAGS = -I "../include" \
-           -I "/u/sw/toolchains/gcc-glibc/11.2.0/prefix/include/**" \
-           -I "/u/sw/toolchains/gcc-glibc/11.2.0/prefix/include/c++/11.2.0" \
-           -I "/u/sw/toolchains/gcc-glibc/11.2.0/base/include" \
-           -I "/u/sw/toolchains/gcc-glibc/11.2.0/pkgs/eigen/3.3.9/include/eigen3" \
-           -I "/u/sw/toolchains/gcc-glibc/11.2.0/pkgs/lis/2.0.30/include" \
-           -I "/u/sw/toolchains/gcc-glibc/11.2.0/pkgs/dealii/9.3.1/include" \
-           -I "$(PACS_ROOT)/src/Utilities/" \
-           -O2 -std=c++20 -Wno-deprecated-enum-enum-conversion 
 
-CXX=mpic++
-CXXFLAGS+=-Wno-suggest-override -Wno-cast-function-type -fopenmp
-LDFLAGS+=-fopenmp
+
+CXX       = mpic++
+CXXFLAGS ?= -std=c++20 -Wno-suggest-override -Wno-cast-function-type
+CPPFLAGS ?= -O3 -Wall -pedantic -I./../include -I${PACS_ROOT}/include -I${mkEigenInc} 
+LDFLAGS ?= -L${PACS_ROOT}/lib
+
 
 SRC_DIR = .
 OBJ_DIR = ../obj
@@ -31,11 +24,11 @@ $(TARGET): $(OBJECTS)
 
 # Creating object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(HEADERS) | $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS)  -c $< -o $@
 
 # Creating object files for headers
 $(OBJ_DIR)/%.o: $(INC_DIR)/%.hpp | $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX)  $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 # Create obj directory if it doesn't exist
 $(OBJ_DIR):
