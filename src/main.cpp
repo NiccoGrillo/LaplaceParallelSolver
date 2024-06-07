@@ -5,7 +5,7 @@
 int main(int argc, char** argv) {
     int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-
+    omp_set_num_threads(2); //my laptop won't handle more than 2 threads per MPI process
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);

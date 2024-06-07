@@ -2,9 +2,9 @@
 
 CXX       = mpic++
 CXXFLAGS ?= -std=c++20 -Wno-suggest-override -Wno-cast-function-type
-CPPFLAGS ?= -O3 -Wall -pedantic -I./../include -I${PACS_ROOT}/include -I${mkEigenInc} 
+CPPFLAGS ?= -fopenmp -O3 -Wall -pedantic -I./../include -I${PACS_ROOT}/include -I${mkEigenInc} 
 LDFLAGS ?= -L${PACS_ROOT}/lib
-
+LDFLAGS+=-fopenmp
 
 SRC_DIR = .
 OBJ_DIR = ../obj
@@ -20,7 +20,7 @@ all: $(TARGET)
 
 # Linking
 $(TARGET): $(OBJECTS)
-	$(CXX) $(OBJECTS) -o $@
+	$(CXX) $(LDFLAGS) $(OBJECTS) -o $@
 
 # Creating object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(HEADERS) | $(OBJ_DIR)
