@@ -3,6 +3,7 @@
 
 #include <Eigen/Dense>
 #include <mpi.h>
+#include <omp.h>
 #include <functional>
 #include <iostream>
 #include "BoundaryCondition.hpp"
