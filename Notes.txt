@@ -1,0 +1,8 @@
+- Clear instructions for compilation and reproducibility of the code
+
+- many warnings during compilation (mainly uninitialized variables). You should solve those!
+- you should not hard code the number of threads
+
+- add comments to the code!
+
+- you don't need to loop on the ranks. Just send to the previous and following and receive from them.
